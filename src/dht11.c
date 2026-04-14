@@ -1,13 +1,22 @@
-#include "../../../../include/driver/pinctrl.h"
-#include "../../../../kernel/osal/include/debug/osal_debug.h"
-#include "../../../../include/driver/gpio.h"
-#include "../../../../kernel/osal/include/schedule/osal_task.h"
+#include "pinctrl.h"
+#include "osal_debug.h"
+#include "gpio.h"
+#include "osal_task.h"
 #include "common_def.h"
 #include "cmsis_os2.h"
-#include "app_init.h"
+#include "dht11.h"
+#include "LED.h"
 
 #define DHT11_PIN    GPIO_00
 #define PIN_MODE_0   0
+
+// 全局变量（需互斥锁保护）
+uint8_t g_latest_temp = 0;
+uint8_t g_latest_humi = 0;
+osMutexId_t data_mutex;
+
+// 事件标志组
+osEventFlagsId_t led_event_id;
 
 static int read_bit(void)
 {
@@ -24,7 +33,7 @@ static int read_bit(void)
     return t;  // 返回高电平时长
 }
 
-static void *dht11_task(const char *arg)
+void read(const char *arg)
 {
     unused(arg);
     osal_msleep(2000);
@@ -83,25 +92,21 @@ static void *dht11_task(const char *arg)
             // 验证校验和
             if (data[0]+data[1]+data[2]+data[3] == data[4]) {
                 osal_printk("[OK] T=%d.%dC H=%d.%d%%\r\n", data[2], data[3], data[0], data[1]);
+                
+                // 更新全局温湿度（互斥保护）
+                osMutexAcquire(data_mutex, osWaitForever);
+                g_latest_humi = data[0];   // 湿度整数部分
+                g_latest_temp = data[2];   // 温度整数部分
+                osMutexRelease(data_mutex);
+
+                // 发送事件通知 LED 任务
+                osEventFlagsSet(led_event_id, DHT11_UPDATED_EVT);
             } else {
                 osal_printk("[ERR] %d %d %d %d %d\r\n", data[0], data[1], data[2], data[3], data[4]);
             }
-        }
         
         osal_msleep(3000);
+        }
     }
-    return NULL;
+    return ;
 }
-
-static void dht11_entry(void)
-{
-    osThreadAttr_t attr = {0};
-    attr.name = "DHT11";
-    attr.stack_size = 0x1000;
-    attr.priority = (osPriority_t)(17);
-    if (osThreadNew((osThreadFunc_t)dht11_task, NULL, &attr) == NULL) {
-        osal_printk("[ERR]\r\n");
-    }
-}
-
-app_run(dht11_entry);
