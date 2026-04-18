@@ -1,11 +1,11 @@
-#include "LED.h"
 #include "gpio.h"
-
 #include "pinctrl.h"
-#include "osal_debug.h"
-#include "osal_task.h"
+#include "debug/osal_debug.h"
+#include "schedule/osal_task.h"
 #include "cmsis_os2.h"
 #include "pwm.h"
+
+#include "LED.h"
 
 #define PWM_CHANNEL     2
 #define PWM_GROUP_ID    0
@@ -128,7 +128,7 @@ void led_set_duty(uint8_t percent)
         .cycles = 0,
         .repeat = true
     };
-    osal_printk("PWM set duty: open channel\r\n");
+    // osal_printk("PWM set duty: open channel\r\n");
     uapi_pwm_open(PWM_CHANNEL, &cfg);
     uapi_pwm_start_group(PWM_GROUP_ID);
 }
@@ -156,11 +156,10 @@ void led_control_task(void *argument)
                                           osFlagsWaitAny, 10);  // 超时 10ms
 
         if (flags & DHT11_UPDATED_EVT) {
-            // 事件触发，重新计算模式（实际读取温湿度的任务会在更新后发送事件）
-            // 注意：此处不直接读温湿度，而是通过全局变量（需互斥锁）
-            // 为简化，假设外部已更新全局变量 g_latest_temp 和 g_latest_humi
-            extern uint8_t g_latest_temp, g_latest_humi;
-            led_mode_t new_mode = led_calc_mode(g_latest_temp, g_latest_humi);
+            // 事件触发，重新计算模式
+            uint8_t temp_int = (uint8_t)g_latest_temp;
+            uint8_t humi_int = (uint8_t)g_latest_humi;
+            led_mode_t new_mode = led_calc_mode(temp_int, humi_int);
 
             if (new_mode != current_mode) {
                 current_mode = new_mode;

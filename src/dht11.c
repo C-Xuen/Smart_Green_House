@@ -1,9 +1,10 @@
 #include "pinctrl.h"
-#include "osal_debug.h"
+#include "debug/osal_debug.h"
+#include "schedule/osal_task.h"
 #include "gpio.h"
-#include "osal_task.h"
 #include "common_def.h"
 #include "cmsis_os2.h"
+
 #include "dht11.h"
 #include "LED.h"
 
@@ -11,8 +12,8 @@
 #define PIN_MODE_0   0
 
 // 全局变量（需互斥锁保护）
-uint8_t g_latest_temp = 0;
-uint8_t g_latest_humi = 0;
+float g_latest_temp = 0.0f;
+float g_latest_humi = 0.0f;
 osMutexId_t data_mutex;
 
 // 事件标志组
@@ -33,7 +34,7 @@ static int read_bit(void)
     return t;  // 返回高电平时长
 }
 
-void read(const char *arg)
+void dht11_read(const char *arg)
 {
     unused(arg);
     osal_msleep(2000);
@@ -91,12 +92,14 @@ void read(const char *arg)
             
             // 验证校验和
             if (data[0]+data[1]+data[2]+data[3] == data[4]) {
+                float temp_real = data[2] + data[3] * 0.1f;   // 温度：整数+小数
+                float humi_real  = data[0] + data[1] * 0.1f;   // 湿度：整数+小数
                 osal_printk("[OK] T=%d.%dC H=%d.%d%%\r\n", data[2], data[3], data[0], data[1]);
                 
                 // 更新全局温湿度（互斥保护）
                 osMutexAcquire(data_mutex, osWaitForever);
-                g_latest_humi = data[0];   // 湿度整数部分
-                g_latest_temp = data[2];   // 温度整数部分
+                g_latest_temp = temp_real;
+                g_latest_humi = humi_real;
                 osMutexRelease(data_mutex);
 
                 // 发送事件通知 LED 任务
