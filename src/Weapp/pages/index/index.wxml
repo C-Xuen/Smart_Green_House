@@ -1,0 +1,107 @@
+<view class="container">
+  <view class="title">🌱 农业大棚智能监测系统</view>
+  <view class="time">{{timestamp}}</view>
+
+  <!-- 连接状态 -->
+  <view class="status-bar {{connected ? 'status-on' : 'status-off'}}">
+    设备连接：{{connected ? '已连接' : '断开'}}
+  </view>
+
+  <!-- 实时数据 -->
+  <view class="card">
+    <h2>📊 实时环境数据</h2>
+    <view class="sensor-grid">
+      <view class="sensor-item {{Temp>temp_max||Temp<temp_min?'alarm':'normal'}}">
+        <image src="/images/温度计.png"></image>
+        <view class="sensor-info">
+          <view class="sensor-label">温度</view>
+          <view class="sensor-value">{{Temp}}℃</view>
+        </view>
+      </view>
+      <view class="sensor-item {{Hum>humi_max||Hum<humi_min?'alarm':'normal'}}">
+        <image src="/images/湿度.png"></image>
+        <view class="sensor-info">
+          <view class="sensor-label">湿度</view>
+          <view class="sensor-value">{{Hum}}%</view>
+        </view>
+      </view>
+      <view class="sensor-item {{CO2>co2_max?'alarm':'normal'}}">
+        <image src="/images/二氧化碳.png"></image>
+        <view class="sensor-info">
+          <view class="sensor-label">CO₂</view>
+          <view class="sensor-value">{{CO2}} ppm</view>
+        </view>
+      </view>
+      <view class="sensor-item {{Light<light_min?'alarm':'normal'}}">
+        <image src="/images/光照强度.png"></image>
+        <view class="sensor-info">
+          <view class="sensor-label">光照</view>
+          <view class="sensor-value">{{Light}} Lux</view>
+        </view>
+      </view>
+      <view class="sensor-item {{Soil<soil_min?'alarm':'normal'}}">
+        <image src="/images/土壤湿度.png"></image>
+        <view class="sensor-info">
+          <view class="sensor-label">土壤</view>
+          <view class="sensor-value">{{Soil}}%</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 阈值设置 -->
+  <view class="card">
+    <h2>⚙️ 阈值设置</h2>
+    <view class="threshold-row">
+      <text>温度</text>
+      <input placeholder="低温" bindinput="onMinInput" data-key="temp_min" value="{{temp_min}}"/> ~
+      <input placeholder="高温" bindinput="onMaxInput" data-key="temp_max" value="{{temp_max}}"/> ℃
+    </view>
+    <view class="threshold-row">
+      <text>湿度</text>
+      <input placeholder="低温" bindinput="onMinInput" data-key="humi_min" value="{{humi_min}}"/> ~
+      <input placeholder="高温" bindinput="onMaxInput" data-key="humi_max" value="{{humi_max}}"/> %
+    </view>
+    <view class="threshold-row">
+      <text>CO₂上限</text>
+      <input bindinput="onSingleInput" data-key="co2_max" value="{{co2_max}}"/> ppm
+    </view>
+    <view class="threshold-row">
+      <text>光照下限</text>
+      <input bindinput="onSingleInput" data-key="light_min" value="{{light_min}}"/> Lux
+    </view>
+    <view class="threshold-row">
+      <text>土壤下限</text>
+      <input bindinput="onSingleInput" data-key="soil_min" value="{{soil_min}}"/> %
+    </view>
+    <view class="btn" bindtap="saveThreshold">保存阈值</view>
+  </view>
+
+  <!-- 设备控制 -->
+  <view class="card">
+    <h2>🔌 设备控制</h2>
+    <view class="ctrl-row">
+      <view class="ctrl-left"><image src="/images/通风风扇.png"></image><text>通风风扇</text></view>
+      <switch checked="{{fan}}" bindchange="onCtrl" data-dev="fan"/>
+    </view>
+    <view class="ctrl-row">
+      <view class="ctrl-left"><image src="/images/散热风扇.png"></image><text>散热风扇</text></view>
+      <switch checked="{{heat_fan}}" bindchange="onCtrl" data-dev="heat_fan"/>
+    </view>
+    <view class="ctrl-row">
+      <view class="ctrl-left"><image src="/images/补光灯.png"></image><text>补光灯</text></view>
+      <switch checked="{{light_ctrl}}" bindchange="onCtrl" data-dev="light_ctrl"/>
+    </view>
+    <view class="ctrl-row">
+      <view class="ctrl-left"><image src="/images/帆船.png"></image><text>水泵</text></view>
+      <switch checked="{{pump}}" bindchange="onCtrl" data-dev="pump"/>
+    </view>
+  </view>
+
+  <!-- 告警记录 -->
+  <view class="card">
+    <h2>🚨 告警记录</h2>
+    <view wx:for="{{alarms}}" wx:key="time" class="alarm-item">{{item.time}} {{item.msg}}</view>
+    <view wx:if="{{alarms.length==0}}" style="text-align:center;color:#999">暂无告警</view>
+  </view>
+</view>

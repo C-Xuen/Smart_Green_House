@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>大棚智能监测系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+        body{background:#f5f7fa;padding:20px}
+        .container{max-width:1200px;margin:0 auto}
+        .title{text-align:center;margin:20px 0;color:#2c3e50}
+        .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:15px;box-shadow:0 2px 8px #0000001a}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+        .item{padding:15px;border-radius:8px;display:flex;align-items:center;gap:10px}
+        .item img{width:40px;height:40px}
+        .info{flex:1}
+        .label{font-size:14px;color:#7f8c8d}
+        .value{font-size:22px;font-weight:bold}
+        .normal{background:#1dd1a1;color:#fff}
+        .alarm{background:#ff6b6b;color:#fff}
+        .device{display:flex;align-items:center;justify-content:center;background:#f1f2f6;padding:12px;margin-bottom:10px;border-radius:8px}
+        .device img{width:30px;height:30px}
+        .switch{width:50px;height:24px;background:#ddd;border-radius:12px;position:relative;cursor:pointer}
+        .switch::after{content:"";width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:0.2s}
+        .switch.on{background:#1dd1a1}
+        .switch.on::after{left:28px}
+        #chart{width:100%;height:300px;margin:10px 0}
+        .alarm-item{padding:8px;background:#fff5f5;border-left:4px solid #ff6b6b;margin-bottom:6px}
+        .time{text-align:center;color:#777;margin:10px 0}
+        .threshold-row{display:flex;justify-content:space-between;margin:6px 0}
+        input{width:70px;padding:4px}
+        button{padding:6px 12px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">🌱 农业大棚智能监测系统</h1>
+    <div class="time" id="updateTime"></div>
+
+    <!-- 已修改的连接状态部分 -->
+    <div class="card">
+        <div class="device" id="connStatus">
+            <span style="width: 100%; text-align: center; font-size: 16px; color: black;">
+                设备连接：<b id="connText">加载中</b>
+            </span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 实时环境数据</h2>
+        <div class="grid" id="sensorGrid"></div>
+    </div>
+
+    <div class="card">
+        <h2>📈 温湿度历史曲线</h2>
+        <div id="chart"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔌 设备控制</h2>
+        <div id="deviceList"></div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ 阈值设置</h2>
+        <div id="thresholdPanel"></div>
+        <button onclick="saveThreshold()">保存阈值</button>
+    </div>
+
+    <div class="card">
+        <h2>🚨 告警记录</h2>
+        <div id="alarmList"></div>
+    </div>
+</div>
+
+<script>
+    let chart, threshold = {}, lastData = {};
+
+    // 初始化图表
+    function initChart() {
+        chart = echarts.init(document.getElementById('chart'));
+        chart.setOption({
+            title: {text: '近30次数据'},
+            tooltip: {trigger: 'axis'},
+            legend: {data: ['温度', '湿度']},
+            xAxis: {type: 'category', data: []},
+            yAxis: [{type: 'value', name: '温度℃'}, {type: 'value', name: '湿度%'}],
+            series: [
+                {name: '温度', type: 'line', data: [], yAxisIndex: 0},
+                {name: '湿度', type: 'line', data: [], yAxisIndex: 1}
+            ]
+        });
+    }
+
+    // 加载阈值
+    function loadThreshold() {
+        fetch('/api/threshold').then(r=>r.json()).then(d=>{
+            threshold = d;
+            document.getElementById('thresholdPanel').innerHTML = `
+                <div class="threshold-row">温度：<input id="tmin" value="${d.temp_min}">~<input id="tmax" value="${d.temp_max}">℃</div>
+                <div class="threshold-row">湿度：<input id="hmin" value="${d.humi_min}">~<input id="hmax" value="${d.humi_max}">%</div>
+                <div class="threshold-row">CO₂上限：<input id="co2" value="${d.co2_max}">ppm</div>
+                <div class="threshold-row">光照下限：<input id="light" value="${d.light_min}">Lux</div>
+                <div class="threshold-row">土壤下限：<input id="soil" value="${d.soil_min}">%</div>
+            `;
+        });
+    }
+
+    // 保存阈值
+    function saveThreshold() {
+        const data = {
+            temp_min: document.getElementById('tmin').value,
+            temp_max: document.getElementById('tmax').value,
+            humi_min: document.getElementById('hmin').value,
+            humi_max: document.getElementById('hmax').value,
+            co2_max: document.getElementById('co2').value,
+            light_min: document.getElementById('light').value,
+            soil_min: document.getElementById('soil').value
+        };
+        fetch('/api/threshold', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+            .then(r=>r.json()).then(d=>alert(d.msg));
+    }
+
+    // 设备控制
+    function control(device, state) {
+        fetch('/api/control', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device, status: state})});
+        updateData();
+    }
+
+    // 更新数据
+    function updateData() {
+        fetch('/api/data').then(r=>r.json()).then(data=>{
+            lastData = data;
+            document.getElementById('updateTime').innerText = '更新时间：' + data.timestamp;
+
+            // 连接状态
+            const conn = document.getElementById('connStatus');
+            const txt = document.getElementById('connText');
+            if (data.connected) {
+                conn.className = 'device normal';
+                txt.innerText = '已连接';
+            } else {
+                conn.className = 'device alarm';
+                txt.innerText = '断开';
+            }
+
+            // 传感器
+            document.getElementById('sensorGrid').innerHTML = `
+                <div class="item ${data.temperature>threshold.temp_max||data.temperature<threshold.temp_min?'alarm':'normal'}">
+                    <img src="/static/images/温度计.png"><div class="info"><div class="label">温度</div><div class="value">${data.temperature}℃</div></div>
+                </div>
+                <div class="item ${data.humidity>threshold.humi_max||data.humidity<threshold.humi_min?'alarm':'normal'}">
+                    <img src="/static/images/湿度.png"><div class="info"><div class="label">湿度</div><div class="value">${data.humidity}%</div></div>
+                </div>
+                <div class="item ${data.co2>threshold.co2_max?'alarm':'normal'}">
+                    <img src="/static/images/二氧化碳.png"><div class="info"><div class="label">CO₂</div><div class="value">${data.co2}ppm</div></div>
+                </div>
+                <div class="item ${data.light<threshold.light_min?'alarm':'normal'}">
+                    <img src="/static/images/光照强度.png"><div class="info"><div class="label">光照</div><div class="value">${data.light}Lux</div></div>
+                </div>
+                <div class="item ${data.soil<threshold.soil_min?'alarm':'normal'}">
+                    <img src="/static/images/土壤湿度.png"><div class="info"><div class="label">土壤</div><div class="value">${data.soil}%</div></div>
+                </div>
+                <div class="item ${data.fire?'alarm':'normal'}">
+                    <img src="/static/images/alarm.png"><div class="info"><div class="label">火焰</div><div class="value">${data.fire?'⚠告警':'✅正常'}</div></div>
+                </div>
+            `;
+
+            // 设备列表 + 开关
+            document.getElementById('deviceList').innerHTML = `
+                <div class="device"><img src="/static/images/通风风扇.png"><span>通风风扇</span>
+                    <div class="switch ${data.fan?'on':''}" onclick="control('fan',${data.fan?0:1})"></div>
+                </div>
+                <div class="device"><img src="/static/images/散热风扇.png"><span>散热风扇</span>
+                    <div class="switch ${data.heat_fan?'on':''}" onclick="control('heat_fan',${data.heat_fan?0:1})"></div>
+                </div>
+                <div class="device"><img src="/static/images/补光灯.png"><span>补光灯</span>
+                    <div class="switch ${data.light_ctrl?'on':''}" onclick="control('light_ctrl',${data.light_ctrl?0:1})"></div>
+                </div>
+                <div class="device"><img src="/static/images/帆船.png"><span>水泵</span>
+                    <div class="switch ${data.pump?'on':''}" onclick="control('pump',${data.pump?0:1})"></div>
+                </div>
+            `;
+        });
+
+        // 更新图表
+        fetch('/api/history').then(r=>r.json()).then(history=>{
+            const times = [], temps = [], humis = [];
+            history.forEach(h=>{times.push(h.time.slice(11)); temps.push(h.temp); humis.push(h.humi)});
+            chart.setOption({xAxis:{data:times}, series:[{data:temps},{data:humis}]});
+        });
+
+        // 更新告警
+        fetch('/api/alarms').then(r=>r.json()).then(alarms=>{
+            const list = alarms.slice(0,10);
+            document.getElementById('alarmList').innerHTML = list.map(a=>
+                `<div class="alarm-item">${a.time} ${a.msg}</div>`
+            ).join('');
+        });
+    }
+
+    window.onload = () => {
+        initChart();
+        loadThreshold();
+        updateData();
+        setInterval(updateData, 3000);
+    }
+</script>
+</body>
+</html>

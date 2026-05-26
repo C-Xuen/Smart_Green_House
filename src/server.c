@@ -2,19 +2,17 @@
 #include "lwip/netdb.h"
 #include "lwip/netif.h"
 #include "lwip/err.h"
-#include "debug/osal_debug.h"
-#include "schedule/osal_task.h"
+#include "osal_debug.h"
+#include "osal_task.h"
 #include "cmsis_os2.h"
 #include "soc_osal.h"
 #include <string.h>
 
-#include "dht11.h"
-
-
-extern osMutexId_t data_mutex;
+#include "dht11/dht11.h"
+#include "jw01/jw01.h"
+#include "adcsensor/adcsensor.h"
 
 #define HTTP_PORT 80
-#define RESP_BUF_SIZE 4096
 
 static const char HTML_PAGE[] = 
 "<!DOCTYPE html>"
@@ -89,24 +87,19 @@ void http_server_task(void *arg)
             osal_printk("[HTTP] %s\n", recv_buf);
             
             if (strstr(recv_buf, "GET /api/temp_humi") != NULL) {
-                osal_printk("[API] Handling /api/temp_humi request\n");
-                float temp, humi;
-                
-                osal_printk("[API] acquiring mutex...\n");
-                osMutexAcquire(data_mutex, osWaitForever);
-                temp = g_latest_temp;
-                humi = g_latest_humi;
-                osMutexRelease(data_mutex);
-                osal_printk("[API] released mutex, raw: temp=%d, humi=%d\n", (int)temp, (int)humi);
+                int ti = (int)dht11_get_temp_int();
+                int td = (int)dht11_get_temp_deci();
+                int hi = (int)dht11_get_humi_int();
+                int hd = (int)dht11_get_humi_deci();
 
-                int ti = (int)temp;
-                int td = ((int)(temp * 10)) % 10;
-                int hi = (int)humi;
-                int hd = ((int)(humi * 10)) % 10;
-                
-                osal_printk("[API] temp=%d.%d, humi=%d.%d\n", ti, td, hi, hd);
-                
-                char json[48];
+                int co2 = (int)jw01_get_co2();
+                int soil = (int)adcsensor_get_voltage_ch2();
+                int light = (int)adcsensor_get_voltage_ch3();
+                if (co2 > 9999) co2 = 9999;
+                if (soil > 9999) soil = 9999;
+                if (light > 9999) light = 9999;
+
+                char json[256];
                 int j = 0;
                 json[j++] = '{';
                 json[j++] = '\"';json[j++]='t';json[j++]='e';json[j++]='m';json[j++]='p';json[j++]='e';json[j++]='r';json[j++]='a';json[j++]='t';json[j++]='u';json[j++]='r';json[j++]='e';json[j++]='\"';json[j++]=':';
@@ -114,11 +107,21 @@ void http_server_task(void *arg)
                 json[j++] = ',';
                 json[j++] = '\"';json[j++]='h';json[j++]='u';json[j++]='m';json[j++]='i';json[j++]='d';json[j++]='i';json[j++]='t';json[j++]='y';json[j++]='\"';json[j++] = ':';
                 json[j++] = '0' + (hi / 10); json[j++] = '0' + (hi % 10); json[j++] = '.'; json[j++] = '0' + hd;
+                json[j++] = ',';
+                json[j++] = '\"';json[j++]='c';json[j++]='o';json[j++]='2';json[j++]='\"';json[j++]=':';
+                json[j++] = '0' + (co2 / 1000); json[j++] = '0' + ((co2/100)%10);
+                json[j++] = '0' + ((co2/10)%10); json[j++] = '0' + (co2 % 10);
+                json[j++] = ',';
+                json[j++] = '\"';json[j++]='s';json[j++]='o';json[j++]='i';json[j++]='l';json[j++]='_';json[j++]='m';json[j++]='o';json[j++]='i';json[j++]='s';json[j++]='t';json[j++]='u';json[j++]='r';json[j++]='e';json[j++]='\"';json[j++] = ':';
+                json[j++] = '0' + (soil / 1000); json[j++] = '0' + ((soil/100)%10);
+                json[j++] = '0' + ((soil/10)%10); json[j++] = '0' + (soil % 10);
+                json[j++] = ',';
+                json[j++] = '\"';json[j++]='l';json[j++]='i';json[j++]='g';json[j++]='h';json[j++]='t';json[j++]='\"';json[j++]=':';
+                json[j++] = '0' + (light / 1000); json[j++] = '0' + ((light/100)%10);
+                json[j++] = '0' + ((light/10)%10); json[j++] = '0' + (light % 10);
                 json[j++] = '}';
                 json[j] = 0;
                 int json_len = j;
-
-                osal_printk("[API] json=%s, len=%d\n", json, json_len);
 
                 char *response = (char *)osal_kmalloc(json_len + 100, OSAL_GFP_ATOMIC);
                 if (response) {
@@ -142,14 +145,14 @@ void http_server_task(void *arg)
                     *resp++='n'; *resp++='t'; *resp++='-'; *resp++='L'; *resp++='e';
                     *resp++='n'; *resp++='g'; *resp++='t'; *resp++='h'; *resp++=':';
                     *resp++=' '; 
-                    *resp++ = '0' + (json_len / 10);
+                    *resp++ = '0' + (json_len / 100);
+                    *resp++ = '0' + ((json_len / 10) % 10);
                     *resp++ = '0' + (json_len % 10);
                     *resp++='\r'; *resp++='\n'; *resp++='\r'; *resp++='\n';
                     int hlen = resp - response;
                     memcpy(resp, json, json_len);
                     int total = hlen + json_len;
-                    int sent = lwip_write(client_fd, response, total);
-                    osal_printk("[API] hlen=%d, json_len=%d, sent=%d\n", hlen, json_len, sent);
+                    lwip_write(client_fd, response, total);
                     osal_kfree(response);
                 }
             } else if (strstr(recv_buf, "GET /") != NULL) {

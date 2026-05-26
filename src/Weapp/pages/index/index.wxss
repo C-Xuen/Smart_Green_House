@@ -1,0 +1,41 @@
+/* 全局 */
+page{background:#f5f7fa;font-family:-apple-system}
+.container{padding:20rpx}
+
+/* 标题 */
+.title{text-align:center;font-size:40rpx;font-weight:bold;color:#2c3e50;padding:30rpx 0}
+.time{text-align:center;color:#999;font-size:24rpx;margin-bottom:20rpx}
+
+/* 连接状态 */
+.status-bar{padding:20rpx;border-radius:16rpx;margin-bottom:20rpx;text-align:center;font-size:30rpx;font-weight:bold}
+.status-on{background:#1dd1a1;color:#fff}
+.status-off{background:#ff6b6b;color:#fff}
+
+/* 卡片 */
+.card{background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,0.06)}
+.card h2{font-size:32rpx;color:#2c3e50;margin-bottom:16rpx}
+
+/* 传感器网格 */
+.sensor-grid{display:flex;flex-wrap:wrap;gap:16rpx}
+.sensor-item{flex:1 1 45%;padding:20rpx;border-radius:12rpx;display:flex;align-items:center;gap:12rpx}
+.sensor-item image{width:48rpx;height:48rpx}
+.sensor-info{flex:1}
+.sensor-label{font-size:24rpx;color:#7f8c8d}
+.sensor-value{font-size:40rpx;font-weight:bold}
+.normal{background:#1dd1a1;color:#fff}
+.alarm{background:#ff6b6b;color:#fff}
+
+/* 阈值 */
+.threshold-row{display:flex;align-items:center;justify-content:space-between;padding:12rpx 0;border-bottom:1rpx solid #f0f0f0}
+.threshold-row text{font-size:28rpx;color:#555}
+.threshold-row input{border:1rpx solid #ddd;border-radius:8rpx;padding:8rpx;width:180rpx;font-size:26rpx;text-align:center}
+.btn{background:#3498db;color:#fff;padding:12rpx;text-align:center;border-radius:10rpx;font-size:28rpx;margin-top:16rpx}
+
+/* 控制开关 */
+.ctrl-row{display:flex;align-items:center;justify-content:space-between;padding:16rpx 0;border-bottom:1rpx solid #f0f0f0}
+.ctrl-left{display:flex;align-items:center;gap:12rpx}
+.ctrl-left image{width:36rpx;height:36rpx}
+.ctrl-left text{font-size:28rpx;color:#555}
+
+/* 告警 */
+.alarm-item{padding:12rpx;background:#fff5f5;border-left:6rpx solid #ff6b6b;margin-bottom:10rpx;font-size:24rpx;color:#e74c3c}
