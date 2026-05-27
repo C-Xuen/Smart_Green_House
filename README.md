@@ -64,12 +64,16 @@
 ## 二、项目目录树
 
 ```
-smart_green_house/
-├── CmakeLists.txt                # 构建配置
-├── Kconfig                       # 菜单配置
+├── CmakeLists.txt
+├── Kconfig
 ├── README.md
-├── DEV_GUIDE.md
 │
+├──smart_green_house/
+│   ├── CmakeLists.txt                       # 构建配置
+│   ├── Kconfig                              # 菜单配置
+│   ├──project.config.json                   # 配置文件
+│   ├──project.private.config.json           # 配置文件
+│   
 ├── src/
 │   ├── SGH.c                     # 主入口：RTOS 任务创建 + OLED + 传感器采集 + 告警逻辑
 │   ├── app.py                    # Flask 后台：数据聚合 + REST API + 网页渲染
