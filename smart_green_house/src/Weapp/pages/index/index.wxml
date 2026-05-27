@@ -36,7 +36,7 @@
         <image src="/images/光照强度.png"></image>
         <view class="sensor-info">
           <view class="sensor-label">光照</view>
-          <view class="sensor-value">{{Light}} Lux</view>
+          <view class="sensor-value">{{Light}}%</view>
         </view>
       </view>
       <view class="sensor-item {{Soil<soil_min?'alarm':'normal'}}">

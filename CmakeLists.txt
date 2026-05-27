@@ -1,38 +1,60 @@
-if(CONFIG_ENABLE_SMART_GREEN_HOUSE_SAMPLE)
-    set(SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/SGH.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/oled.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/ssd1306.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/ssd1306_fonts.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/cn_font.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/adcsensor/adcsensor.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dht11/dht11.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/bee/bee.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/flame/flame.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/jw01/jw01.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/button/button.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/threshold/threshold.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/motor/motor.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/LED.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/server.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/wifi_connect.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/MQTT.c
-    )
+#===============================================================================
+# @brief    cmake file
+# Copyright (c) CompanyNameMagicTag 2023-2023. All rights reserved.
+#===============================================================================
+set(COMPONENT_NAME "samples")
 
-    set(PUBLIC_HEADER
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/adcsensor
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dht11
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/bee
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/flame
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/jw01
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/button
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/threshold
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/motor
-    )
+set(SOURCES
+)
+
+set(PUBLIC_HEADER
+)
+
+if(DEFINED CONFIG_ENABLE_PERIPHERAL_SAMPLE)
+    add_subdirectory_if_exist(peripheral)
 endif()
+if(DEFINED CONFIG_ENABLE_WIFI_SAMPLE)
+    add_subdirectory_if_exist(wifi)
+endif()
+if(DEFINED CONFIG_ENABLE_PRODUCTS_SAMPLE)
+    add_subdirectory_if_exist(products)
+endif()
+if(DEFINED CONFIG_ENABLE_SMART_GREEN_HOUSE_SAMPLE)
+    add_subdirectory_if_exist(smart_green_house)
+endif()
+add_subdirectory_if_exist(custom)
 
-set(SOURCES "${SOURCES}" PARENT_SCOPE)
-set(PUBLIC_HEADER "${PUBLIC_HEADER}" PARENT_SCOPE)
+set(PRIVATE_HEADER
+)
+
+set(PRIVATE_DEFINES
+)
+
+set(PUBLIC_DEFINES
+)
+
+# use this when you want to add ccflags like -include xxx
+set(COMPONENT_PUBLIC_CCFLAGS
+)
+
+# 设置不显示不使用警告
+set(COMPONENT_CCFLAGS
+    -Wno-unused-variable
+    -Wno-unused-parameter
+    -Wno-error=unused-function
+)
+
+set(WHOLE_LINK
+    true
+)
+
+set(MAIN_COMPONENT
+    false
+)
+
+install_sdk("${CMAKE_CURRENT_SOURCE_DIR}/peripheral" "*")
+install_sdk("${CMAKE_CURRENT_SOURCE_DIR}/products" "*")
+install_sdk("${CMAKE_CURRENT_SOURCE_DIR}/wifi/sta_sample" "*")
+install_sdk("${CMAKE_CURRENT_SOURCE_DIR}/wifi/softap_sample" "*")
+
+build_component()

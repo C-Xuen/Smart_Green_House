@@ -13,5 +13,7 @@ uint16_t th_co2(void);
 void     th_co2_set(uint16_t v);
 uint8_t  th_soil(void);
 void     th_soil_set(uint8_t v);
+uint8_t  th_light(void);
+void     th_light_set(uint8_t v);
 
 #endif

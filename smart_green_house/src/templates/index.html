@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>大棚智能监测系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+        body{
+            background: rgba(245, 247, 250, 0.7) url('/static/images/background.jpg') no-repeat center center fixed;
+            -webkit-background-size: cover;
+            -moz-background-size: cover;
+            -o-background-size: cover;
+            background-size: cover;
+            padding:20px
+        }
+        .container{max-width:1200px;margin:0 auto}
+        .title{text-align:center;margin:20px 0;color:#ffffff}
+        .card{background:rgba(255,255,255,0.85);border-radius:12px;padding:20px;margin-bottom:15px;box-shadow:0 2px 8px #0000001a}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+        .item{padding:15px;border-radius:8px;display:flex;align-items:center;gap:10px}
+        .item img{width:40px;height:40px}
+        .info{flex:1}
+        .label{font-size:14px;color:#7f8c8d}
+        .value{font-size:22px;font-weight:bold}
+        .normal{background:#1dd1a1;color:#fff}
+        .alarm{background:#ff6b6b;color:#fff}
+        .device{display:flex;align-items:center;justify-content:space-between;background:#f1f2f6;padding:12px 16px;margin-bottom:10px;border-radius:8px}
+        .device img{width:30px;height:30px}
+        .device span{flex:1;margin-left:10px;font-size:16px}
+        .switch{width:50px;height:26px;background:#ddd;border-radius:13px;position:relative;cursor:pointer;transition:background 0.3s ease}
+        .switch::after{content:"";width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s ease}
+        .switch.on{background:#1dd1a1}
+        .switch.on::after{left:26px}
+        .alarm-item{padding:8px;background:#fff5f5;border-left:4px solid #ff6b6b;margin-bottom:6px}
+        .time{text-align:center;color: #1f1e02;margin:10px 0}
+        .threshold-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #eee}
+        .threshold-row:last-child{border-bottom:none}
+        .threshold-row .th-label{width:100px;font-size:15px;color:#555;display:flex;align-items:center;gap:6px}
+        .threshold-row .th-icon{width:24px;height:24px}
+        .threshold-row input{width:80px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;text-align:center;outline:none;transition:border 0.2s}
+        .threshold-row input:focus{border-color:#3498db}
+        .threshold-row .th-unit{font-size:13px;color:#999;margin-left:6px;width:30px}
+        .btn-save{display:block;width:100%;padding:12px;margin-top:15px;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;transition:opacity 0.2s}
+        .btn-save:hover{opacity:0.9}
+        .btn-sm{padding:6px 10px;background:#3498db;color:#fff;border:none;border-radius:4px;font-size:13px;cursor:pointer;margin-left:8px;white-space:nowrap}
+        .chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}
+        .chart-grid .chart-box{height:400px}
+        .chart-grid .wide{grid-column:span 2}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">🌱 农业大棚智能监测系统</h1>
+    <div class="time" id="updateTime" color="#ffffff"></div>
+
+    <div class="card">
+        <div class="device" id="connStatus">
+            <span style="width:100%;text-align:center;font-size:16px;color:black;">设备连接：<b id="connText">加载中</b></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 实时环境数据</h2>
+        <div class="grid" id="sensorGrid"></div>
+    </div>
+
+    <div class="card">
+        <h2>📈 环境数据历史曲线</h2>
+        <div class="chart-grid">
+            <div id="tempChart" class="chart-box"></div>
+            <div id="humiChart" class="chart-box"></div>
+            <div id="co2Chart" class="chart-box"></div>
+            <div id="lightChart" class="chart-box"></div>
+            <div id="soilChart" class="chart-box wide"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔌 设备控制</h2>
+        <div class="device">
+            <img src="/static/images/通风风扇.png"><span>大棚风扇</span>
+            <div class="switch" id="fan-switch" onclick="control('fan',this.classList.contains('on')?0:1)"></div>
+        </div>
+        <div class="device">
+            <img src="/static/images/补光灯.png"><span>补光灯</span>
+            <div class="switch" id="light_ctrl-switch" onclick="control('light_ctrl',this.classList.contains('on')?0:1)"></div>
+        </div>
+        <div class="device">
+            <img src="/static/images/帆船.png"><span>水泵</span>
+            <div class="switch" id="pump-switch" onclick="control('pump',this.classList.contains('on')?0:1)"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ 阈值设置</h2>
+        <div id="thresholdPanel"></div>
+    </div>
+
+    <div class="card">
+        <h2>🚨 告警记录</h2>
+        <div id="alarmList"></div>
+    </div>
+</div>
+
+<script>
+    let tempChart, humiChart, co2Chart, lightChart, soilChart, threshold = {}, lastData = {};
+
+    function initChart() {
+        var opt = function(title, unit, color, min, max, interval) { return {
+            title: {text: title, textStyle: {fontSize: 14}},
+            tooltip: {trigger: 'axis'},
+            xAxis: {type: 'category', data: []},
+            yAxis: {type: 'value', name: unit, min: min, max: max, interval: interval},
+            series: [{name: title, type: 'line', data: [], itemStyle: {color: color}}]
+        };};
+        tempChart  = echarts.init(document.getElementById('tempChart'));  tempChart.setOption(opt('温度曲线', '℃', 'red',   10, 40, 2));
+        humiChart  = echarts.init(document.getElementById('humiChart'));  humiChart.setOption(opt('湿度曲线', '%',  'blue',  30, 80, 5));
+        co2Chart   = echarts.init(document.getElementById('co2Chart'));   co2Chart.setOption(opt('CO₂曲线',  'ppm','green', 0,  1600, 200));
+        lightChart = echarts.init(document.getElementById('lightChart')); lightChart.setOption(opt('光照曲线', '%',  'orange',0, 100, 10));
+        soilChart  = echarts.init(document.getElementById('soilChart'));  soilChart.setOption(opt('土壤湿度', '%',  'brown', 0,  100, 10));
+    }
+
+function loadThreshold() {
+        fetch('/api/threshold').then(r=>r.json()).then(d=>{
+            threshold = d;
+            document.getElementById('thresholdPanel').innerHTML = `
+                <div class="threshold-row"><span class="th-label"><img class="th-icon" src="/static/images/温度计.png">温度上限</span><input id="tmax" value="${d.temp_max}"><span class="th-unit">℃</span><button class="btn-sm" onclick="saveOne('temp_max','tmax')">保存</button></div>
+                <div class="threshold-row"><span class="th-label"><img class="th-icon" src="/static/images/湿度.png">湿度上限</span><input id="hmax" value="${d.humi_max}"><span class="th-unit">%</span><button class="btn-sm" onclick="saveOne('humi_max','hmax')">保存</button></div>
+                <div class="threshold-row"><span class="th-label"><img class="th-icon" src="/static/images/二氧化碳.png">CO₂上限</span><input id="co2" value="${d.co2_max}"><span class="th-unit">ppm</span><button class="btn-sm" onclick="saveOne('co2_max','co2')">保存</button></div>
+                <div class="threshold-row"><span class="th-label"><img class="th-icon" src="/static/images/光照强度.png">光照下限</span><input id="light" value="${d.light_min}"><span class="th-unit">%</span><button class="btn-sm" onclick="saveOne('light_min','light')">保存</button></div>
+                <div class="threshold-row"><span class="th-label"><img class="th-icon" src="/static/images/土壤湿度.png">土壤下限</span><input id="soil" value="${d.soil_min}"><span class="th-unit">%</span><button class="btn-sm" onclick="saveOne('soil_min','soil')">保存</button></div>
+            `;
+        });
+    }
+
+    function saveOne(key, inputId) {
+        var val = document.getElementById(inputId).value;
+        var data = {}; data[key] = val;
+        fetch('/api/threshold', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+            .then(r=>r.json()).then(d=>{});
+    }
+
+    // 静默刷新阈值（不重绘面板，只更新 input 值）
+    function syncThreshold() {
+        fetch('/api/threshold').then(r=>r.json()).then(d=>{
+            threshold = d;
+            var tmax = document.getElementById('tmax'), hmax = document.getElementById('hmax');
+            var co2 = document.getElementById('co2'), light = document.getElementById('light'), soil = document.getElementById('soil');
+            if (tmax && document.activeElement !== tmax) tmax.value = d.temp_max;
+            if (hmax && document.activeElement !== hmax) hmax.value = d.humi_max;
+            if (co2 && document.activeElement !== co2) co2.value = d.co2_max;
+            if (light && document.activeElement !== light) light.value = d.light_min;
+            if (soil && document.activeElement !== soil) soil.value = d.soil_min;
+        });
+    }
+
+    function control(device, state) {
+        var el = document.getElementById(device + '-switch');
+        if (state) el.classList.add('on'); else el.classList.remove('on');
+        fetch('/api/control', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device, status: state})});
+    }
+
+    function updateData() {
+        fetch('/api/data').then(r=>r.json()).then(data=>{
+            lastData = data;
+            document.getElementById('updateTime').innerText = '更新时间：' + data.timestamp;
+
+            var conn = document.getElementById('connStatus');
+            var txt = document.getElementById('connText');
+            if (data.connected) { conn.className = 'device normal'; txt.innerText = '已连接'; }
+            else { conn.className = 'device alarm'; txt.innerText = '断开'; }
+
+            document.getElementById('sensorGrid').innerHTML = `
+                <div class="item ${data.temperature>threshold.temp_max?'alarm':'normal'}">
+                    <img src="/static/images/温度计.png"><div class="info"><div class="label">温度</div><div class="value">${data.temperature}℃</div></div>
+                </div>
+                <div class="item ${data.humidity>threshold.humi_max?'alarm':'normal'}">
+                    <img src="/static/images/湿度.png"><div class="info"><div class="label">湿度</div><div class="value">${data.humidity}%</div></div>
+                </div>
+                <div class="item ${data.co2>threshold.co2_max?'alarm':'normal'}">
+                    <img src="/static/images/二氧化碳.png"><div class="info"><div class="label">CO₂</div><div class="value">${data.co2}ppm</div></div>
+                </div>
+                <div class="item ${data.light<threshold.light_min?'alarm':'normal'}">
+                    <img src="/static/images/光照强度.png"><div class="info"><div class="label">光照</div><div class="value">${data.light}%</div></div>
+                </div>
+                <div class="item ${data.soil<threshold.soil_min?'alarm':'normal'}">
+                    <img src="/static/images/土壤湿度.png"><div class="info"><div class="label">土壤</div><div class="value">${data.soil}%</div></div>
+                </div>
+                <div class="item ${data.fire?'alarm':'normal'}">
+                    <img src="/static/images/alarm.png"><div class="info"><div class="label">火焰</div><div class="value">${data.fire?'⚠告警':'✅正常'}</div></div>
+                </div>
+            `;
+
+            // 不再根据 API 数据同步开关状态（API 不返回电机实际状态）
+        });
+
+        fetch('/api/history').then(r=>r.json()).then(history=>{
+            var times = [], temps = [], humis = [], co2s = [], lights = [], soils = [];
+            history.forEach(h=>{times.push(h.time.slice(11)); temps.push(h.temp); humis.push(h.humi); co2s.push(h.co2); lights.push(h.light); soils.push(h.soil_humi)});
+            tempChart.setOption({xAxis:{data:times}, series:[{data:temps}]});
+            humiChart.setOption({xAxis:{data:times}, series:[{data:humis}]});
+            co2Chart.setOption({xAxis:{data:times}, series:[{data:co2s}]});
+            lightChart.setOption({xAxis:{data:times}, series:[{data:lights}]});
+            soilChart.setOption({xAxis:{data:times}, series:[{data:soils}]});
+        });
+
+        fetch('/api/alarms').then(r=>r.json()).then(alarms=>{
+            document.getElementById('alarmList').innerHTML = alarms.slice(0,10).map(a=>
+                `<div class="alarm-item">${a.time} ${a.msg}</div>`
+            ).join('');
+        });
+    }
+
+    window.onload = () => {
+        initChart();
+        loadThreshold();
+        updateData();
+        setInterval(updateData, 3000);
+        setInterval(syncThreshold, 10000);
+    }
+</script>
+</body>
+</html>

@@ -16,7 +16,8 @@
 #include "button/button.h"
 #include "threshold/threshold.h"
 #include "motor/motor.h"
-#include "wifi_connect.h"
+#include "light/light.h"
+#include "wifi_connect/wifi_connect.h"
 
 extern void http_server_task(void *arg);
 extern void mqtt_task(void *arg);
@@ -40,7 +41,7 @@ static void *wifi_task_func(const char *arg)
 #define SGH_TASK_STACK_SIZE    0x1000
 #define SGH_TASK_PRIO          (osPriority_t)(17)
 
-enum { PAGE_MAIN, PAGE_TEMP, PAGE_HUMI, PAGE_CO2, PAGE_SOIL, PAGE_MAX };
+enum { PAGE_MAIN, PAGE_TEMP, PAGE_HUMI, PAGE_CO2, PAGE_SOIL, PAGE_LIGHT, PAGE_MAX };
 
 #define CN_WEN   0
 #define CN_DU    1
@@ -134,10 +135,10 @@ static void *sgh_task(const char *arg)
 {
     unused(arg);
     oled_init(); bee_init(); flame_init(); dht11_init();
-    adcsensor_init(); jw01_init(); button_init(); th_init(); motor_init();
+    adcsensor_init(); jw01_init(); button_init(); th_init(); motor_init(); light_init();
     osal_printk("[SGH] init OK\r\n");
 
-    int page=PAGE_MAIN, tick=0, dht_ret=-1, jw_ret=-1;
+    int page=PAGE_MAIN, tick=0, dht_ret=-1, jw_ret=-1, flame_recovery=0;
 
     while(1){
         tick++;
@@ -151,12 +152,14 @@ static void *sgh_task(const char *arg)
             if(page==PAGE_HUMI)th_humi_set(th_humi()+1);
             if(page==PAGE_CO2) th_co2_set(th_co2()+50);
             if(page==PAGE_SOIL)th_soil_set(th_soil()+1);
+            if(page==PAGE_LIGHT)th_light_set(th_light()+1);
         }
         if(btn3_pressed()){
             if(page==PAGE_TEMP&&th_temp()>0)  th_temp_set(th_temp()-1);
             if(page==PAGE_HUMI&&th_humi()>0)  th_humi_set(th_humi()-1);
             if(page==PAGE_CO2 &&th_co2()>=50) th_co2_set(th_co2()-50);
             if(page==PAGE_SOIL&&th_soil()>0)  th_soil_set(th_soil()-1);
+            if(page==PAGE_LIGHT&&th_light()>0) th_light_set(th_light()-1);
         }
 
         int alarm=check_alarm(dht_ret,jw_ret);
@@ -165,12 +168,21 @@ static void *sgh_task(const char *arg)
 
         if(flame_detected()){
             bee_on(); fan_on(); pump_on();
+            flame_recovery = 50;
+        }else if(flame_recovery > 0){
+            flame_recovery--;
+            bee_off();
         }else if(co2_a || dht_a){
-            bee_on(); fan_on(); pump_off();
+            bee_on(); fan_on();
         }else if(alarm){
-            bee_on(); pump_off();
+            bee_on();
         }else{
-            bee_off(); fan_off(); pump_off();
+            bee_off();
+        }
+
+        if(!light_is_manual()){
+            if(light_percent(adcsensor_get_voltage_ch3()) < th_light()) light_on();
+            else if(light_percent(adcsensor_get_voltage_ch3()) > th_light() + 10) light_off();
         }
 
         oled_clear();
@@ -198,6 +210,12 @@ static void *sgh_task(const char *arg)
             int t0[]={CN_TU,CN_RANG,CN_SHEN,CN_DU,CN_YU,CN_ZHI}; cn_title(0,6,t0);
             cn_str(0,16,CN_DANG,CN_QIAN,":%d %%",soil_percent(adcsensor_get_voltage_ch2()));
             cn_str(0,32,CN_SHE,CN_ZHI2,":%d %%",th_soil());
+            oled_show_string(0,48,"Btn2:+ Btn3:-"); break;
+        }
+        case PAGE_LIGHT: {
+            int t0[]={CN_GUANG,CN_ZHAO,CN_YU,CN_ZHI}; cn_title(0,4,t0);
+            cn_str(0,16,CN_DANG,CN_QIAN,":%d %%",light_percent(adcsensor_get_voltage_ch3()));
+            cn_str(0,32,CN_SHE,CN_ZHI2,":%d %%",th_light());
             oled_show_string(0,48,"Btn2:+ Btn3:-"); break;
         }
         }

@@ -7,7 +7,8 @@
 #include "jw01/jw01.h"
 #include "adcsensor/adcsensor.h"
 #include "flame/flame.h"
-#include "LED.h"
+#include "threshold/threshold.h"
+#include "LED/LED.h"
 #include <string.h>
 
 extern int MQTTClient_init(void);
@@ -108,6 +109,11 @@ static int mqtt_report_properties(float temp, float humi, int co2, int soil, int
     cJSON_AddNumberToObject(props, "soil_moisture", soil);
     cJSON_AddNumberToObject(props, "light", light);
     cJSON_AddNumberToObject(props, "flame", flame);
+    cJSON_AddNumberToObject(props, "th_temp", th_temp());
+    cJSON_AddNumberToObject(props, "th_humi", th_humi());
+    cJSON_AddNumberToObject(props, "th_co2",  th_co2());
+    cJSON_AddNumberToObject(props, "th_soil", th_soil());
+    cJSON_AddNumberToObject(props, "th_light",th_light());
 
     /* 序列化为 JSON 字符串 */
     char *str = cJSON_PrintUnformatted(root);

@@ -1,0 +1,40 @@
+if(CONFIG_ENABLE_SMART_GREEN_HOUSE_SAMPLE)
+    set(SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/SGH.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/oled.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/ssd1306.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/ssd1306_fonts.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled/cn_font.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/adcsensor/adcsensor.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dht11/dht11.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/bee/bee.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/flame/flame.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/jw01/jw01.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/button/button.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/threshold/threshold.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/motor/motor.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/light/light.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/LED/LED.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/server/server.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/wifi_connect/wifi_connect.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MQTT/MQTT.c
+    )
+
+    set(PUBLIC_HEADER
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/wifi_connect
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/oled
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/adcsensor
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dht11
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/bee
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/flame
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/jw01
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/button
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/threshold
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/motor
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/light
+    )
+endif()
+
+set(SOURCES "${SOURCES}" PARENT_SCOPE)
+set(PUBLIC_HEADER "${PUBLIC_HEADER}" PARENT_SCOPE)

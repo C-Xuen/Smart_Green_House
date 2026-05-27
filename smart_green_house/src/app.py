@@ -3,6 +3,9 @@ import requests, time, json, os
 
 app = Flask(__name__)
 
+# ============ 设备直连地址（同一 WiFi 下控制硬件） ============
+DEVICE_URL = "http://192.168.52.247"  # 改成 H3863 的 IP
+
 # ============ 华为云配置 ============
 PROJECT_ID = "019e58e2a10d72658ed091c6b113e751"
 DEVICE_ID  = "6a12aafe6b6c4d5f8d60913b_H3863"
@@ -69,8 +72,8 @@ def get_sensor_data():
         props = query_shadow(ep, token)
         if props:
             return {
-                "temperature": props.get("temperature", 0),
-                "humidity":    props.get("humidity", 0),
+                "temperature": round(props.get("temperature", 0), 1),
+                "humidity":    round(props.get("humidity", 0), 1),
                 "co2":         props.get("co2", 0),
                 "light":       props.get("light", 0),
                 "soil":        props.get("soil_moisture", 0),
@@ -91,7 +94,7 @@ def _default():
     }
 
 # ============ 阈值+历史+告警 ============
-threshold_config = {"temp_min":10,"temp_max":35,"humi_min":30,"humi_max":85,"co2_max":1200,"light_min":5000,"soil_min":20}
+threshold_config = {"temp_min":10,"temp_max":35,"humi_min":30,"humi_max":85,"co2_max":1200,"light_min":5,"soil_min":20}
 HISTORY_FILE = "history.json"
 ALARMS_FILE  = "alarms.json"
 
@@ -113,7 +116,14 @@ def check_alarm(data):
 
 def save_history(data):
     h = lj(HISTORY_FILE)
-    h.append({"time": data["timestamp"], "temp": data["temperature"], "humi": data["humidity"]})
+    h.append({
+        "time": data["timestamp"],
+        "temp": data["temperature"],
+        "humi": data["humidity"],
+        "co2": data["co2"],
+        "light": data["light"],
+        "soil_humi": data["soil"]
+    })
     sj(HISTORY_FILE, h[-30:])
 
 # ============ Flask 路由 ============
@@ -132,7 +142,23 @@ def api_history(): return jsonify(lj(HISTORY_FILE))
 def api_alarms(): return jsonify(lj(ALARMS_FILE))
 
 @app.route('/api/threshold')
-def api_threshold(): return jsonify(threshold_config)
+def api_threshold():
+    # 从云影子读取阈值（MQTT 已上传 th_temp/th_humi/th_co2/th_soil/th_light）
+    token = get_token()
+    if token:
+        try:
+            for ep in IOTDA_EPS:
+                props = query_shadow(ep, token)
+                if props:
+                    threshold_config["temp_max"]  = int(props.get("th_temp",  threshold_config["temp_max"]))
+                    threshold_config["humi_max"]  = int(props.get("th_humi",  threshold_config["humi_max"]))
+                    threshold_config["co2_max"]   = int(props.get("th_co2",   threshold_config["co2_max"]))
+                    threshold_config["soil_min"]  = int(props.get("th_soil",  threshold_config["soil_min"]))
+                    threshold_config["light_min"] = int(props.get("th_light", threshold_config["light_min"]))
+                    break
+        except Exception as e:
+            print(f"[Th] cloud read: {e}")
+    return jsonify(threshold_config)
 
 @app.route('/api/threshold', methods=['POST'])
 def set_threshold():
@@ -140,10 +166,22 @@ def set_threshold():
     d = request.get_json()
     for k in threshold_config:
         if k in d: threshold_config[k] = float(d[k])
+    try:
+        requests.post(f"{DEVICE_URL}/api/threshold", json=d, timeout=2)
+    except:
+        pass
     return jsonify({"code": 0, "msg": "ok"})
 
 @app.route('/api/control', methods=['POST'])
-def control_device(): return jsonify({"code": 0, "msg": "ok"})
+def control_device():
+    d = request.get_json()
+    print(f"[Flask] control: {d} -> {DEVICE_URL}/api/control")
+    try:
+        r = requests.post(f"{DEVICE_URL}/api/control", json=d, timeout=2)
+        print(f"[Flask] device response: {r.status_code}")
+    except Exception as e:
+        print(f"[Flask] device unreachable: {e}")
+    return jsonify({"code": 0, "msg": "ok"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
